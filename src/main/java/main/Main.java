@@ -16,7 +16,7 @@ public class Main {
     private static final String TOPIC_NAME = "topic1";
 
     public static void main(String[] args) {
-        testParallel();
+        testConsumerUseReceive();
     }
 
     /**
@@ -28,7 +28,7 @@ public class Main {
             for (int i = 0; i < 2; i++) {
                 THREAD_POOl.execute(() -> {
                     System.out.println("这是消费者" + Thread.currentThread().getName());
-                    XAConnection connection = null;
+                    Connection connection = null;
                     Session session = null;
                     MessageConsumer consumer = null;
                     try {
@@ -47,7 +47,7 @@ public class Main {
                     } finally {
                         if (consumer != null) {
                             try {
-                                connection.close();
+                                consumer.close();
                             } catch (JMSException e) {
                                 e.printStackTrace();
                             }
@@ -80,7 +80,7 @@ public class Main {
      * 消费者使用receive接受消息
      */
     private static void testConsumerUseReceive() {
-        XAConnection connection = null;
+        Connection connection = null;
         Session session = null;
         MessageConsumer consumer = null;
         try {
@@ -99,7 +99,7 @@ public class Main {
         } finally {
             if (consumer != null) {
                 try {
-                    connection.close();
+                    consumer.close();
                 } catch (JMSException e) {
                     e.printStackTrace();
                 }
@@ -121,4 +121,49 @@ public class Main {
         }
     }
 
+    /**
+     * 消费者使用receive接受消息，并且支持持久化
+     */
+    private static void testConsumerUseReceiveWithPersistent() {
+        Connection connection = null;
+        Session session = null;
+        TopicSubscriber durableSubscriber = null;
+        try {
+            connection = ActiveMqUtil.getConnection();
+            connection.setClientID("client1");
+            session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+            Topic topic = session.createTopic(TOPIC_NAME);
+            durableSubscriber = session.createDurableSubscriber(topic, "client1-sub");
+            connection.start();
+            while (true) {
+                TextMessage message = (TextMessage) durableSubscriber.receive();
+                System.out.println("消费的消息是" + message.getText());
+            }
+
+        } catch (JMSException e) {
+            e.printStackTrace();
+        } finally {
+            if (durableSubscriber != null) {
+                try {
+                    durableSubscriber.close();
+                } catch (JMSException e) {
+                    e.printStackTrace();
+                }
+            }
+            if (session != null) {
+                try {
+                    session.close();
+                } catch (JMSException e) {
+                    e.printStackTrace();
+                }
+            }
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (JMSException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
 }
